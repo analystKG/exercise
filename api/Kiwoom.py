@@ -15,7 +15,7 @@ class Kiwoom(QAxWidget): #QAxWidget이라는 클래스 상속 QAxWidget은 Open 
         self.tr_event_loop = QEventLoop() # tr 요청에 대한 응답 대기를 위한 변수
 
         self.order = {} # 종목 코드를 키 값으로 해당 종목의 주문 정보를 담은 딕셔너리
-        self.balace = {} # 종목 코드를 키 값으로 해당 종목의 매수 정보를 담은 딕셔너리
+        self.balance = {} # 종목 코드를 키 값으로 해당 종목의 매수 정보를 담은 딕셔너리
 
      # PC에서 Kiwoom API를 사용할 수 있도록 설정하는 함수
     def _make_kiwoom_instance(self): # _: 클래스 외부에서 명시적으로 호출해서 사용하지 않는 함수를 클래스 내부에서만 사용한다는 의미
@@ -133,6 +133,89 @@ class Kiwoom(QAxWidget): #QAxWidget이라는 클래스 상속 QAxWidget은 Open 
             self.tr_data = int(deposit)
             print(self.tr_data)
 
+        # TR(opt10075: 주문정보조회)에 대한 응답 처리
+        elif rqname == "opt10075_req":
+            for i in range(tr_data_cnt):
+                code = self.dynamicCall("GetCommData(Qstring, Qstring, int, Qstring", trcode, rqname, i, "종목코드")
+                code_name = self.dynamicCall("GetCommData(Qstring, Qstring, int, Qstring", trcode, rqname, i, "종목명")
+                order_number = self.dynamicCall("GetCommData(Qstring, Qstring, int, Qstring", trcode, rqname, i, "주문번호")
+                order_status = self.dynamicCall("GetCommData(Qstring, Qstring, int, Qstring", trcode, rqname, i, "주문상태")
+                order_quantity = self.dynamicCall("GetCommData(Qstring, Qstring, int, Qstring", trcode, rqname, i, "주문수량")
+                order_price = self.dynamicCall("GetCommData(Qstring, Qstring, int, Qstring", trcode, rqname, i, "주문가격")
+                current_price = self.dynamicCall("GetCommData(Qstring, Qstring, int, Qstring", trcode, rqname, i, "현재가")
+                order_type = self.dynamicCall("GetCommData(Qstring, Qstring, int, Qstring", trcode, rqname, i, "주문구분")
+                left_quantity = self.dynamicCall("GetCommData(Qstring, Qstring, int, Qstring", trcode, rqname, i, "미체결수량")
+                executed_quantity = self.dynamicCall("GetCommData(Qstring, Qstring, int, Qstring", trcode, rqname, i, "체결량")
+                ordered_at = self.dynamicCall("GetCommData(Qstring, Qstring, int, Qstring", trcode, rqname, i, "시간")
+                fee = self.dynamicCall("GetCommData(Qstring, Qstring, int, Qstring", trcode, rqname, i, "당일매매수수료")
+                tax = self.dynamicCall("GetCommData(Qstring, Qstring, int, Qstring", trcode, rqname, i, "당일매매세금")
+
+                code = code.strip()
+                code_name = code_name.strip()
+                order_number = str(int(order_number.stirp()))
+                order_status = order_status.strip()
+                order_quantity = int(order_quantity.strip())
+                order_price = int(order_price.strip())
+
+                current_price = int(current_price.strip().lstrip('+').lstrip('-'))
+                order_type = order_type.strip().lstrip('+').lstrip('-')
+                left_quantity = int(left_quantity.strip())
+                executed_quantity = int(executed_quantity.strip())
+                ordered_at = ordered_at.strip()
+                fee = int(fee)
+                tax = int(tax)
+
+                self.order[code] ={
+                    '종목코드': code,
+                    '종목명': code_name,
+                    '주문번호': order_number,
+                    '주문상태': order_status,
+                    '주문수량': order_quantity,
+                    '현재가': current_price,
+                    '주문구분': order_type,
+                    '미체결수량': left_quantity,
+                    '체결량': executed_quantity,
+                    '주문시간': ordered_at,
+                    '당일매매수수료': fee,
+                    '당일매매세금': tax
+                }
+
+                self.tr_data = self.order
+        # TR(opt10075: 주문정보조회)에 대한 응답 처리
+        elif rqname == "opw00018_req": # 보유 종목 정보
+            for i in range(tr_data_cnt): # tr_data_cnt: 응답 데이터 개수, 현재 계좌에서 tr_data_cnt만큼의 종목을 보유하고 있음을 의미
+                code = self.dynamicCall("GetCommData(Qstring, Qstring, int, Qstring", trcode, rqname, i, "종목번호")
+                code_name = self.dynamicCall("GetCommData(Qstring, Qstring, int, Qstring", trcode, rqname, i, "종목명")
+                quantity = self.dynamicCall("GetCommData(Qstring, Qstring, int, Qstring", trcode, rqname, i, "보유수량")
+                purchase_price = self.dynamicCall("GetCommData(Qstring, Qstring, int, Qstring", trcode, rqname, i, "매입가")
+                return_rate = self.dynamicCall("GetCommData(Qstring, Qstring, int, Qstring", trcode, rqname, i, "수익률(%)")
+                current_price = self.dynamicCall("GetCommData(Qstring, Qstring, int, Qstring", trcode, rqname, i, "현재가")
+                total_purchase_price = self.dynamicCall("GetCommData(Qstring, Qstring, int, Qstring", trcode, rqname, i, "매입금액")
+                available_quantity = self.dynamicCall("GetCommData(Qstring, Qstring, int, Qstring", trcode, rqname, i, "매매가능수량")
+
+                code = code.strip()[1:]
+                code_name = code_name.strip()
+                quantity = int(quantity)
+                purchase_price = int(purchase_price)
+                return_rate = float(return_rate)
+                current_price = int(current_price)
+                total_purchase_price = int(total_purchase_price)
+                available_quantity = int(available_quantity)
+
+                # 종목 코드를 키로 한 balance 딕셔너리에 담음
+                self.balance[code] = {
+                    '종목명': code_name,
+                    '보유수량': quantity,
+                    '매입가': purchase_price,
+                    '수익률': return_rate,
+                    '현재가': current_price,
+                    '매입금액': total_purchase_price,
+                    '매매가능수량': available_quantity
+                }
+
+            self.tr_data = self.balance
+
+
         self.tr_event_loop.exit() # TR 요청을 보내고 응답을 대기시키는 데 사용하는 self.tr.event_loop를 종료하는 역할
         time.sleep(0.5) # 프로그램을 0.5초만큼 쉬도록 하겠다. 이코드가 실행되는 순간부터 바로 0.5초를 대기
 
@@ -148,31 +231,35 @@ class Kiwoom(QAxWidget): #QAxWidget이라는 클래스 상속 QAxWidget은 Open 
 
     # 주문 접수/체결
     def _on_chejan_slot(self, s_gubun, n_item_cnt, s_fid_list):
+        # 함수의 매개변수들을 출력해서 어느 값을 받아 오는지 확인
         print("[Kiwoom _on_chejan_slot is called {} / {} / {}".format(s_gubun, n_item_cnt, s_fid_list))
 
-        for fid in s_fid_list.split(";"): # fid 리스트를 ; 기준으로 구
+        for fid in s_fid_list.split(";"): # fid 리스트를 ; 기준으로 구분 # s_fid_list에는 접수/체결/잔고 이동 상태에 따라 확인 가능한 fid값들이 ;을 기준으로 연결되어 있음
             if fid in FID_CODES:
-                code = self.dynamicCall("GetChejanData(int)", '9001')[1:]분 # 종목코드를 얻어 와 A007700처럼 앞자리에 오는 문자를 제거
+                # code 변수에 종목 코드 저장
+                code = self.dynamicCall("GetChejanData(int)", '9001')[1:] # 종목코드를 얻어 와 A007700처럼 앞자리에 오는 문자를 제거(0번째는 버리고 1번째 인덱스부터 사용)
                 data = self.dynamicCall("GetChejanData(int)", fid) # fid를 사용하여 데이터 얻어 오기 (ex) fid:9203을 전달하면 주문 번호를 수신하여 data에 저장
 
-                data = data.strip().lstrip('+').lstrip('-') 데이터에 +,- 가 붙어 있으면 제거
+                data = data.strip().lstrip('+').lstrip('-') # 문자의 맨 앞 혹은 맨 뒤에 붙은 공백을 제거하고, 데이터에 +,- 가 붙어 있으면 제거
 
-                if data.isdigit(): # 수신한 문자형 데이터 중 숫자인 항목(ex:매수가)를 숫자로 바꿈
+                if data.isdigit(): # 수신한 문자형 데이터 중 문자인 항목(ex:매수가)를 숫자로 바꿈
                     data = int(data)
 
-                item_name = FID_CODES[fid] # fid코드에 해당하는 항목(item_name)을 찾음(ex) fid=9201 -> item_name = 계좌번호
+                item_name = FID_CODES[fid] # fid코드에 해당하는 항목(item_name)을 찾음(ex) fid=9201 -> item_name = 계좌번호 / FID_CODES는 fid값이 키, 항목 이름이 값으로 저장된 딕셔너리
                 print("{}: {}".format(item_name, data)) # 얻어온 데이터를 출력함
-
+                # s_gubun값이 0인지 1인지 확인하여 현재 _on_chejan_slot 함수가 접수/체결 상태인지, 잔고 이동 상태인지 확인 가능
                 if int(s_gubun) == 0: # 접수/체결(s_gubun)이면 self_order, 잔고 이동이면 self_balance에 값 저장
-                    if code not in self.order.keys(): # 아직 order에 종목 코드가 없다면 신규 생성하는 과정
-                        self.order[code] = {}
+                    if code not in self.order.keys(): # 아직 self. order에 종목 코드가 키로 존재하지 않으면 신규 생성하는 과정
+                        self.order[code] = {} # 주문을 의미하는 딕셔너리 self.order 변수에 종목 코드를 키 값으로 데이터 저장
+                        # code를 키로 하고 값으로는 빈 딕셔너리를 self.order에 저장하라는 의미
+
 
                     self.order[code].update({item_name: data}) # order 딕셔너리에 데이터 저장
                 elif int(s_gubun) == 1:
-                    if code not in self.balance.keys(): # 아직 balace에 종목 코드가 없다면 신규 생성하는 과정
-                        self.balance[code] = {}
-                    self.balace[code].update({item_name: data}) # order 딕셔너리에 데이터 저장
-
+                    if code not in self.balance.keys(): # 아직 balance에 종목 코드가 없다면 신규 생성하는 과정
+                        self.balance[code] = {} # 잔고를 의미하는 딕셔너리 self.balance 변수에 종목 코드를 키 값으로 저장
+                    self.balance[code].update({item_name: data}) # order 딕셔너리에 데이터 저장
+        # s_gubun 값에 따라 저장한 결과 출력
         if int(s_gubun) == 0:
             print("* 주문 출력(self.order)")
             print(self.order)
@@ -180,11 +267,27 @@ class Kiwoom(QAxWidget): #QAxWidget이라는 클래스 상속 QAxWidget은 Open 
             print("* 잔고 출력(self.balance)")
             print(self.balance)
 
+    # 주문 정보를 얻어 오는 함수
+    # 프로그램 종료 후 재실행 시 이중 주문 발생을 방지하기 위해 필요한 절차
+    def get_order(self):
+        self.dynamicCall("SetInputValue(Qstring, Qstring)", "계좌번호", self.account_number)
+        self.dynamicCall("SetInputValue(Qstring, Qstring)", "전체종목구분", "0")
+        self.dynamicCall("SetInputValue(Qstring, Qstring)", "체결구분", "0") # 0: 전체, 1: 미체결, 2: 체결
+        self.dynamicCall("SetInputValue(Qstring, Qstring)", "매매구분", "0") # 0: 전체, 1: 매도, 2: 매수
+        self.dynamicCall("CommRqData(Qstring, Qstring, int, Qstring)", "opt10075_req", "opt10075", 0, "0002")
 
+        self.tr_event_loop.exec_() # 응답 대기 상태로
+        return self.tr_data
 
+    # 잔고 얻어오기
+    def get_balance(self):
+        self.dynamicCall("SetInputValue(Qstring, Qstring)", "계좌번호", self.account_number)
+        self.dynamicCall("SetInputValue(Qstring, Qstring)", "비밀번호입력매체구분", "00")
+        self.dynamicCall("SetInputValue(Qstring, Qstring)", "조회구분", "1")
+        self.dynamicCall("CommRqData(Qstring, Qstring, int, Qstring)", "opw00018_req", "opw00018", 0, "0002")
 
-
-
+        self.tr_event_loop.exec_()
+        return self.tr_data
 
 
 
@@ -199,6 +302,8 @@ class Kiwoom(QAxWidget): #QAxWidget이라는 클래스 상속 QAxWidget은 Open 
         # 응답 대기 상태로 만들기
         self.tr_event_loop.exec_()
         return self.tr_data
+
+
 
 
 

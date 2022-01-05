@@ -4,8 +4,8 @@ import sys
 app = QApplication(sys.argv)
 kiwoom = Kiwoom()
 
-order_result = kiwoom.send_order('send_buy_order', '1001', 1, '007700', 1, 35000, '00')
-print(order_result)
+position = kiwoom.get_balance()
+print(position)
 
 app.exec_()
 
